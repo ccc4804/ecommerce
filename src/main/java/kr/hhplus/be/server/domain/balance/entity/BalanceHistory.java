@@ -1,15 +1,18 @@
-package kr.hhplus.be.server.domain.balanceHistory.entity;
+package kr.hhplus.be.server.domain.balance.entity;
 
+import kr.hhplus.be.server.domain.balance.code.BalanceType;
 import kr.hhplus.be.server.domain.user.entity.User;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -22,7 +25,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "balance_history")
 @Getter
-@ToString
 @NoArgsConstructor
 public class BalanceHistory {
 
@@ -31,21 +33,16 @@ public class BalanceHistory {
     @Column(name = "id", insertable = false, nullable = false)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false, name = "change_amount")
-    private BigDecimal changeAmount;
-
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, name = "type")
-    private String type;
+    private BalanceType type;
 
-    @Column(name = "current_balance")
-    private Long referenceId;
-
-    @Column(nullable = false, name = "current_balance")
-    private BigDecimal currentBalance;
+    @Column(nullable = false, name = "change_amount")
+    private BigDecimal amount;
 
     @CreatedDate
     @Column(name = "created_at")
@@ -55,12 +52,10 @@ public class BalanceHistory {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @Builder
-    public BalanceHistory(User user, BigDecimal changeAmount, String type, Long referenceId, BigDecimal currentBalance) {
+    @Builder(builderMethodName = "of")
+    public BalanceHistory(User user, BigDecimal amount, BalanceType type) {
         this.user = user;
-        this.changeAmount = changeAmount;
+        this.amount = amount;
         this.type = type;
-        this.referenceId = referenceId;
-        this.currentBalance = currentBalance;
     }
 }

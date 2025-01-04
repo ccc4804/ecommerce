@@ -1,5 +1,6 @@
 package kr.hhplus.be.server.domain.product.entity;
 
+import kr.hhplus.be.server.domain.product.code.ProductStatus;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -9,6 +10,8 @@ import org.springframework.data.annotation.LastModifiedDate;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -19,7 +22,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "product")
 @Getter
-@ToString
 @NoArgsConstructor
 public class Product {
 
@@ -31,14 +33,15 @@ public class Product {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(nullable = false, name = "price")
+    @Column(name = "price", nullable = false)
     private BigDecimal price;
 
-    @Column(nullable = false,name = "stock")
+    @Column(name = "stock", nullable = false)
     private int stock;
 
-    @Column(name = "is_sale")
-    private boolean isSale;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private ProductStatus status;
 
     @CreatedDate
     @Column(name = "created_at")
@@ -49,10 +52,10 @@ public class Product {
     private LocalDateTime updatedAt;
 
     @Builder
-    public Product(String name, BigDecimal price, int stock, boolean isSale) {
+    public Product(String name, BigDecimal price, int stock, ProductStatus status) {
         this.name = name;
         this.price = price;
         this.stock = stock;
-        this.isSale = isSale;
+        this.status = status;
     }
 }
