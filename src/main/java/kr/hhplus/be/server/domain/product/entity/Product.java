@@ -37,6 +37,9 @@ public class Product {
     @Column(nullable = false,name = "stock")
     private int stock;
 
+    @Column(name = "is_sale")
+    private boolean isSale;
+
     @CreatedDate
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -46,9 +49,10 @@ public class Product {
     private LocalDateTime updatedAt;
 
     @Builder
-    public Product(String name, BigDecimal price, int stock) {
+    public Product(String name, BigDecimal price, int stock, boolean isSale) {
         this.name = name;
         this.price = price;
         this.stock = stock;
+        this.isSale = isSale;
     }
 }
