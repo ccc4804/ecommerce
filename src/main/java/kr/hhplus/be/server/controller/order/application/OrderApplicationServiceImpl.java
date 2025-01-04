@@ -48,53 +48,68 @@ public class OrderApplicationServiceImpl implements OrderApplicationService {
     @Override
     @Transactional
     public OrderVO payOrder(List<Long> cartItemIds, Long userCouponId) {
+        List<CartItem> cartItems = getValidatedCartItems(cartItemIds);
+        BigDecimal totalPrice = calculateTotalPrice(cartItems);
 
-        // 장바구니 가져오기
-        List<CartItem> cartItems = getCartItems(cartItemIds);
-
-        // 총 주문 금액 계산
-        BigDecimal totalPrice = getTotalPrice(cartItems);
-
-        // 주문서 생성
         User user = cartItems.get(0).getUser();
         Order order = createOrder(user, totalPrice, cartItems);
 
-        // 쿠폰 확인
-        UserCoupon userCoupon = getUserCoupon(userCouponId, user);
-
-        // 나누기 시 1의 자리까지 버림으로 처리
-        BigDecimal couponDiscountPrice = totalPrice.divide(BigDecimal.valueOf(userCoupon.getCoupon().getDiscount()), 0, RoundingMode.DOWN);
+        BigDecimal couponDiscountPrice = applyCouponIfAvailable(userCouponId, user, totalPrice);
         totalPrice = totalPrice.subtract(couponDiscountPrice);
 
-        // 잔액 확인하기
-        BigDecimal availableBalance = balanceHistoryService.calculate(user);
-        if (totalPrice.compareTo(availableBalance) > 0) {
-            throw new IllegalArgumentException("Insufficient balance.");
-        }
-
-        // 쿠폰 사용 처리
-        userCoupon = userCouponService.use(userCoupon);
-        couponUsedHistoryService.save(user.getId(), userCoupon.getId());
-
-        // 남은 금액 차감하기
-        BalanceHistory useBalanceHistory = balanceHistoryService.use(user, totalPrice);
-
-        // 결제하기
-        Payment payment = paymentService.saveSuccess(order, totalPrice);
-        paymentBalanceService.save(payment, useBalanceHistory, totalPrice);
-        paymentCouponService.save(payment, userCoupon, couponDiscountPrice);
-
-        // 카트 비우기
-        cartItemService.deleteCartItems(cartItems);
+        verifyBalanceSufficiency(user, totalPrice);
+        processPaymentAndUsage(user, order, totalPrice, couponDiscountPrice, cartItems);
 
         return OrderVO.from(order);
     }
 
-    private UserCoupon getUserCoupon(Long userCouponId, User user) {
+    private List<CartItem> getValidatedCartItems(List<Long> cartItemIds) {
+        List<CartItem> cartItems = cartItemService.getCartItemsByIds(cartItemIds);
+        validateCartItems(cartItemIds, cartItems);
+        validateProducts(cartItems);
+        return cartItems;
+    }
+
+    private BigDecimal calculateTotalPrice(List<CartItem> cartItems) {
+        return cartItems.stream()
+                .map(cartItem -> cartItem.getProduct().getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal applyCouponIfAvailable(Long userCouponId, User user, BigDecimal totalPrice) {
+        if (userCouponId == null) {
+            return BigDecimal.ZERO;
+        }
+
+        UserCoupon userCoupon = fetchAndValidateUserCoupon(userCouponId, user);
+        return totalPrice.divide(BigDecimal.valueOf(userCoupon.getCoupon().getDiscount()), 0, RoundingMode.DOWN);
+    }
+
+    private void verifyBalanceSufficiency(User user, BigDecimal totalPrice) {
+        BigDecimal availableBalance = balanceHistoryService.calculate(user);
+        if (totalPrice.compareTo(availableBalance) > 0) {
+            throw new IllegalArgumentException("Insufficient balance.");
+        }
+    }
+
+    private void processPaymentAndUsage(User user, Order order, BigDecimal totalPrice, BigDecimal couponDiscountPrice, List<CartItem> cartItems) {
+        BalanceHistory usedBalanceHistory = balanceHistoryService.use(user, totalPrice);
+        Payment payment = paymentService.saveSuccess(order, totalPrice);
+
+        if (couponDiscountPrice.compareTo(BigDecimal.ZERO) > 0) {
+            UserCoupon usedCoupon = userCouponService.use(fetchAndValidateUserCoupon(user.getId(), user));
+            couponUsedHistoryService.save(user.getId(), usedCoupon.getId());
+            paymentCouponService.save(payment, usedCoupon, couponDiscountPrice);
+        }
+
+        paymentBalanceService.save(payment, usedBalanceHistory, totalPrice);
+        cartItemService.deleteCartItems(cartItems);
+    }
+
+    private UserCoupon fetchAndValidateUserCoupon(Long userCouponId, User user) {
         UserCoupon userCoupon = userCouponService.getUserCouponByCouponIdAndUserId(userCouponId, user.getId())
                 .orElseThrow(() -> new EntityNotFoundException("The coupon does not exist."));
 
-        // 쿠폰 사용 가능 상태 확인
         if (!ObjectUtils.nullSafeEquals(userCoupon.getStatus(), CouponStatus.ACTIVE)) {
             throw new IllegalArgumentException("The coupon is not available.");
         }
@@ -105,38 +120,21 @@ public class OrderApplicationServiceImpl implements OrderApplicationService {
         return userCoupon;
     }
 
-    private List<CartItem> getCartItems(List<Long> cartItemIds) {
-        List<CartItem> cartItems = cartItemService.getCartItemsByIds(cartItemIds);
-
-        // 장바구니 검증
-        validateCartItems(cartItemIds, cartItems);
-
-        // 상품 주문 가능 상태 검증
-        validateProducts(cartItems);
-        return cartItems;
-    }
-
     private Order createOrder(User user, BigDecimal totalPrice, List<CartItem> cartItems) {
         Order order = orderService.createOrder(user, totalPrice);
-
-        // 주문서 상품 목록 생성
-        List<OrderItem> orderItems
-                = cartItems.stream().map(cartItem
-                        -> orderItemService.createOrderItem(order, cartItem.getProduct(), cartItem.getQuantity(), cartItem.getProduct().getPrice()))
-                .toList();
-
+        List<OrderItem> orderItems = createOrderItems(order, cartItems);
         order.setOrderItems(orderItems);
         return order;
     }
 
-    private static BigDecimal getTotalPrice(List<CartItem> cartItems) {
+    private List<OrderItem> createOrderItems(Order order, List<CartItem> cartItems) {
         return cartItems.stream()
-                .map(cartItem -> cartItem.getProduct().getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .map(cartItem -> orderItemService.createOrderItem(order, cartItem.getProduct(), cartItem.getQuantity(), cartItem.getProduct().getPrice()))
+                .toList();
     }
 
     private void validateCartItems(List<Long> cartItemIds, List<CartItem> cartItems) {
-        if (ObjectUtils.nullSafeEquals(cartItemIds.size(), cartItems.size())) {
+        if (!ObjectUtils.nullSafeEquals(cartItemIds.size(), cartItems.size())) {
             throw new IllegalArgumentException("The number of products in the shopping cart is different.");
         }
     }
@@ -148,12 +146,10 @@ public class OrderApplicationServiceImpl implements OrderApplicationService {
                 throw new IllegalArgumentException("The product does not exist.");
             }
 
-            // 상품이 판매중인지 확인
             if (!ObjectUtils.nullSafeEquals(ProductStatus.SALE, product.getStatus())) {
                 throw new IllegalArgumentException("The product is not for sale.");
             }
 
-            // 상품 재고 확인
             if (product.getStock() < cartItem.getQuantity()) {
                 throw new IllegalArgumentException("The product is out of stock.");
             }
