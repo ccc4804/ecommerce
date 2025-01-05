@@ -71,7 +71,6 @@ class OrderControllerTest {
         balanceHistoryRepository.save(BalanceHistory.of().user(user).amount(BigDecimal.valueOf(500)).type(BalanceType.CHARGE).build());
 
         Coupon coupon = couponRepository.save(Coupon.of().code("TEST_CODE").name("TestCoupon")
-                .currentStock(0)
                 .stock(100)
                 .discount(50)
                 .registerStartDate(LocalDateTime.now().minusDays(1))
@@ -101,7 +100,7 @@ class OrderControllerTest {
 
         assertEquals(OrderStatus.COMPLETED, response.getStatus());
         assertEquals(0, BigDecimal.valueOf(200).compareTo(response.getTotalPrice()));
-        assertEquals(0, BigDecimal.valueOf(100).compareTo(response.getPayment().getTotalAmount()));
+        assertEquals(0, BigDecimal.valueOf(200).compareTo(response.getPayment().getTotalAmount()));
         assertEquals(0, BigDecimal.valueOf(100).compareTo(response.getPayment().getCouponDiscountAmount()));
         assertEquals(0, BigDecimal.valueOf(100).compareTo(response.getPayment().getBalanceAmount()));
     }

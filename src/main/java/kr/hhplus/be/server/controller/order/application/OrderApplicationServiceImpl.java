@@ -58,8 +58,10 @@ public class OrderApplicationServiceImpl implements OrderApplicationService {
         Order order = createOrderWithItems(user, totalPrice, cartItems);
         BigDecimal couponDiscountPrice = applyCouponDiscount(userCouponId, user, totalPrice);
 
-        processPayment(user, order, totalPrice.subtract(couponDiscountPrice), couponDiscountPrice, cartItems);
+        processPayment(user, order, totalPrice, couponDiscountPrice, cartItems);
         order.updateSuccessPayment();
+
+        productStockReduce(order.getOrderItems());
 
         return OrderVO.from(order);
     }
@@ -131,11 +133,13 @@ public class OrderApplicationServiceImpl implements OrderApplicationService {
     }
 
     private void processPayment(User user, Order order, BigDecimal totalPrice, BigDecimal couponDiscountPrice, List<CartItem> cartItems) {
-        if (balanceHistoryService.calculate(user).compareTo(totalPrice) < 0) {
+        BigDecimal needPayBalanceAmount = totalPrice.subtract(couponDiscountPrice);
+
+        if (balanceHistoryService.calculate(user).compareTo(needPayBalanceAmount) < 0) {
             throw new IllegalArgumentException("Insufficient balance.");
         }
 
-        BalanceHistory usedBalanceHistory = balanceHistoryService.use(user, totalPrice);
+        BalanceHistory usedBalanceHistory = balanceHistoryService.use(user, needPayBalanceAmount);
         Payment payment = paymentService.save(order, totalPrice);
 
         if (couponDiscountPrice.compareTo(BigDecimal.ZERO) > 0) {
@@ -145,10 +149,17 @@ public class OrderApplicationServiceImpl implements OrderApplicationService {
             payment.setPaymentCoupon(paymentCoupon);
         }
 
-        PaymentBalance paymentBalance = paymentBalanceService.save(payment, usedBalanceHistory, totalPrice);
+        PaymentBalance paymentBalance = paymentBalanceService.save(payment, usedBalanceHistory, needPayBalanceAmount);
         payment.setPaymentBalance(paymentBalance);
         cartItemService.deleteCartItems(cartItems);
 
         order.setPayment(payment);
+    }
+
+    private void productStockReduce(List<OrderItem> orderItems) {
+        orderItems.forEach(orderItem -> {
+            Product product = orderItem.getProduct();
+            product.reduceStock(orderItem.getQuantity());
+        });
     }
 }

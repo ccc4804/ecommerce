@@ -36,7 +36,7 @@ public class CouponServiceImpl implements CouponService {
             throw new IllegalArgumentException("Coupon registration period is not valid.");
         }
 
-        if (coupon.getStock() <= coupon.getCurrentStock()) {
+        if (coupon.getStock() <= 0) {
             throw new IllegalArgumentException("Coupon stock is insufficient.");
         }
     }

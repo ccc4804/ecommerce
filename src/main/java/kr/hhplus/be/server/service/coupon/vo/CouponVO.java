@@ -16,20 +16,18 @@ public class CouponVO {
     private String name;
     private String code;
     private double discount;
-    private int currentStock;
     private int stock;
     private LocalDateTime registerStartDate;
     private LocalDateTime registerEndDate;
     private Integer availableDay;
 
     @Builder
-    public CouponVO(Long id, String name, String code, double discount, int currentStock, int stock,
-                    LocalDateTime registerStartDate, LocalDateTime registerEndDate, Integer availableDay) {
+    public CouponVO(Long id, String name, String code, double discount, int stock, LocalDateTime registerStartDate,
+                    LocalDateTime registerEndDate, Integer availableDay) {
         this.id = id;
         this.name = name;
         this.code = code;
         this.discount = discount;
-        this.currentStock = currentStock;
         this.stock = stock;
         this.registerStartDate = registerStartDate;
         this.registerEndDate = registerEndDate;
@@ -48,7 +46,6 @@ public class CouponVO {
                 .code(coupon.getCode())
                 .discount(coupon.getDiscount())
                 .stock(coupon.getStock())
-                .currentStock(coupon.getCurrentStock())
                 .registerStartDate(coupon.getRegisterStartDate())
                 .registerEndDate(coupon.getRegisterEndDate())
                 .availableDay(coupon.getAvailableDay())

@@ -16,9 +16,9 @@ public class OrderController {
 
     private final OrderApplicationService orderApplicationService;
 
-    // 주문서 생성
+    // 주문
     @PostMapping("/api/v1/orders")
-    public ResponseDTO<OrderResponseDTO> createOrder(@RequestBody OrderRequestDTO requestDTO) {
+    public ResponseDTO<OrderResponseDTO> parOrder(@RequestBody OrderRequestDTO requestDTO) {
 
         OrderVO orderVO = orderApplicationService.payOrder(requestDTO.getCartItemIds(), requestDTO.getUserCouponId());
         OrderResponseDTO responseDTO = OrderResponseDTO.from(orderVO);

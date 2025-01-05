@@ -40,13 +40,9 @@ public class Coupon {
     @Column(name = "discount", nullable = false)
     private double discount;
 
-    // 발급 수량
+    // 남은 수량
     @Column(name = "stock", nullable = false)
     private int stock;
-
-    // 발급 수량
-    @Column(name = "current_stock", nullable = false)
-    private int currentStock;
 
     // 쿠폰 등록 시작일
     @Column(name = "register_start_date", nullable = false)
@@ -69,19 +65,18 @@ public class Coupon {
     private LocalDateTime updatedAt;
 
     @Builder(builderMethodName = "of")
-    public Coupon(String name, String code, double discount, int currentStock, int stock,
+    public Coupon(String name, String code, double discount, int stock,
                   LocalDateTime registerStartDate, LocalDateTime registerEndDate, Integer availableDay) {
         this.name = name;
         this.code = code;
         this.discount = discount;
         this.stock = stock;
-        this.currentStock = currentStock;
         this.registerStartDate = registerStartDate;
         this.registerEndDate = registerEndDate;
         this.availableDay = availableDay;
     }
 
     public void issueCoupon() {
-        this.currentStock++;
+        this.stock--;
     }
 }

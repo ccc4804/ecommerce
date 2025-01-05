@@ -51,7 +51,6 @@ class CouponControllerTest {
     void issueCouponSuccess() throws Exception {
         User user = userRepository.save(User.of().name("TestUser").email("test@example.com").balance(BigDecimal.ZERO).build());
         Coupon coupon = couponRepository.save(Coupon.of().code("TEST_CODE").name("TestCoupon")
-                .currentStock(0)
                 .stock(100)
                 .registerStartDate(LocalDateTime.now().minusDays(1))
                 .registerEndDate(LocalDateTime.now().plusDays(1)).build());
@@ -69,7 +68,6 @@ class CouponControllerTest {
 
         User user = userRepository.save(User.of().name("TestUser").email("test@example.com").balance(BigDecimal.ZERO).build());
         Coupon coupon = couponRepository.save(Coupon.of().code("TEST_CODE").name("TestCoupon")
-                .currentStock(0)
                 .stock(100)
                 .registerStartDate(LocalDateTime.now().minusDays(1))
                 .registerEndDate(LocalDateTime.now().plusDays(1)).build());

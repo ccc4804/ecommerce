@@ -59,7 +59,6 @@ class CouponServiceTest {
                 .registerStartDate(LocalDateTime.now().minusDays(1))
                 .registerEndDate(LocalDateTime.now().plusDays(1))
                 .stock(10)
-                .currentStock(5)
                 .build();
 
         couponService.issueCoupon(coupon);
@@ -74,7 +73,6 @@ class CouponServiceTest {
                 .registerStartDate(LocalDateTime.now().plusDays(1))
                 .registerEndDate(LocalDateTime.now().plusDays(2))
                 .stock(10)
-                .currentStock(5)
                 .build();
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
@@ -91,7 +89,6 @@ class CouponServiceTest {
                 .registerStartDate(LocalDateTime.now().minusDays(1))
                 .registerEndDate(LocalDateTime.now().plusDays(1))
                 .stock(10)
-                .currentStock(10)
                 .build();
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
