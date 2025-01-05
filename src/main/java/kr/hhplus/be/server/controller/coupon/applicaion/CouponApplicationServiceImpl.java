@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.EntityNotFoundException;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -38,20 +37,9 @@ public class CouponApplicationServiceImpl implements CouponApplicationService {
         Coupon coupon = couponService.getCouponByCode(couponCode)
                 .orElseThrow(() -> new EntityNotFoundException("Coupon not found. couponCode: " + couponCode));
 
-        // 쿠폰 검증
-        LocalDateTime now = LocalDateTime.now();
-        if (now.isAfter(coupon.getRegisterStartDate()) && now.isBefore(coupon.getRegisterEndDate())) {
-            throw new IllegalArgumentException("Coupon registration period is not valid.");
-        }
-
-        // 쿠폰 재고 확인
-        if (coupon.getStock() <= coupon.getCurrentStock()) {
-            throw new IllegalArgumentException("Coupon stock is insufficient.");
-        }
-
         // 쿠폰 발급
-        userCouponService.issueCoupon(user, coupon);
         couponService.issueCoupon(coupon);
+        userCouponService.issueCoupon(user, coupon);
 
         log.info("issueCouponByCode userId: {}, couponCode: {}", userId, couponCode);
     }

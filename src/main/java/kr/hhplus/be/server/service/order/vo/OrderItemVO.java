@@ -5,7 +5,6 @@ import kr.hhplus.be.server.service.product.vo.ProductVO;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
@@ -15,15 +14,15 @@ import java.math.BigDecimal;
 public class OrderItemVO {
 
     private Long id;
-    private OrderVO order;
+    private Long orderId;
     private ProductVO product;
     private int quantity;
     private BigDecimal price;
 
     @Builder
-    public OrderItemVO(Long id, OrderVO order, ProductVO product, int quantity, BigDecimal price) {
+    public OrderItemVO(Long id, Long orderId, ProductVO product, int quantity, BigDecimal price) {
         this.id = id;
-        this.order = order;
+        this.orderId = orderId;
         this.product = product;
         this.quantity = quantity;
         this.price = price;
@@ -37,7 +36,7 @@ public class OrderItemVO {
 
         return OrderItemVO.builder()
                 .id(orderItem.getId())
-                .order(OrderVO.from(orderItem.getOrder()))
+                .orderId(orderItem.getOrder().getId())
                 .product(ProductVO.from(orderItem.getProduct()))
                 .quantity(orderItem.getQuantity())
                 .price(orderItem.getPrice())

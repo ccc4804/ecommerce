@@ -5,12 +5,13 @@ import kr.hhplus.be.server.domain.user.entity.User;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -23,6 +24,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "cart_item")
 @Getter
+@EntityListeners(AuditingEntityListener.class)
 @NoArgsConstructor
 public class CartItem {
 
@@ -50,13 +52,10 @@ public class CartItem {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @Builder
-    public CartItem(Long id, User user, Product product, int quantity, LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this.id = id;
+    @Builder(builderMethodName = "of")
+    public CartItem(User user, Product product, int quantity) {
         this.user = user;
         this.product = product;
         this.quantity = quantity;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
     }
 }

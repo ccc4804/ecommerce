@@ -7,5 +7,5 @@ import java.math.BigDecimal;
 
 public interface PaymentService {
 
-    Payment saveSuccess(Order order, BigDecimal amount);
+    Payment save(Order order, BigDecimal amount);
 }

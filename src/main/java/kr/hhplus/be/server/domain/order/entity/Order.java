@@ -9,9 +9,11 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -30,6 +32,7 @@ import java.util.List;
 @Entity
 @Getter
 @NoArgsConstructor
+@EntityListeners(AuditingEntityListener.class)
 @Table(name = "\"order\"")
 public class Order {
 
@@ -53,6 +56,7 @@ public class Order {
     @OneToMany(mappedBy = "order")
     private List<OrderItem> orderItems;
 
+    @Setter
     @OneToOne(mappedBy = "order")
     private Payment payment;
 
@@ -64,11 +68,15 @@ public class Order {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @Builder
+    @Builder(builderMethodName = "of")
     public Order(User user, BigDecimal totalPrice, OrderStatus status, List<OrderItem> orderItems) {
         this.user = user;
         this.totalPrice = totalPrice;
         this.status = status;
         this.orderItems = orderItems;
+    }
+
+    public void updateSuccessPayment() {
+        this.status = OrderStatus.COMPLETED;
     }
 }

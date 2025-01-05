@@ -1,17 +1,17 @@
 package kr.hhplus.be.server.domain.payment.entity;
 
 import kr.hhplus.be.server.domain.order.entity.Order;
-import kr.hhplus.be.server.domain.payment.code.PaymentStatus;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor
+@EntityListeners(AuditingEntityListener.class)
 @Table(name = "payment")
 public class Payment {
 
@@ -40,13 +41,11 @@ public class Payment {
     @Column(nullable = false, name = "amount")
     private BigDecimal amount;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, name = "status")
-    private PaymentStatus status;
-
+    @Setter
     @OneToOne(mappedBy = "payment")
     private PaymentCoupon paymentCoupon;
 
+    @Setter
     @OneToOne(mappedBy = "payment")
     private PaymentBalance paymentBalance;
 
@@ -59,9 +58,8 @@ public class Payment {
     private LocalDateTime updatedAt;
 
     @Builder(builderMethodName = "of")
-    public Payment(Order order, BigDecimal amount, PaymentStatus status) {
+    public Payment(Order order, BigDecimal amount) {
         this.order = order;
         this.amount = amount;
-        this.status = status;
     }
 }

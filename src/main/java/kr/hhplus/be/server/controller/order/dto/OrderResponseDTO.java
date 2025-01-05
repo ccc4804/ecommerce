@@ -1,7 +1,6 @@
 package kr.hhplus.be.server.controller.order.dto;
 
 import kr.hhplus.be.server.domain.order.code.OrderStatus;
-import kr.hhplus.be.server.domain.payment.code.PaymentStatus;
 import kr.hhplus.be.server.domain.product.code.ProductStatus;
 import kr.hhplus.be.server.service.order.vo.OrderItemVO;
 import kr.hhplus.be.server.service.order.vo.OrderVO;
@@ -10,14 +9,12 @@ import kr.hhplus.be.server.service.product.vo.ProductVO;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 @Getter
-@Setter
 @NoArgsConstructor
 public class OrderResponseDTO {
 
@@ -105,14 +102,16 @@ public class OrderResponseDTO {
     public static class OrderPaymentResponseData {
 
         private Long paymentId;
-        private BigDecimal amount;
-        private PaymentStatus status;
+        private BigDecimal totalAmount;
+        private BigDecimal couponDiscountAmount;
+        private BigDecimal balanceAmount;
 
         @Builder
-        public OrderPaymentResponseData(Long paymentId, BigDecimal amount, PaymentStatus status) {
+        public OrderPaymentResponseData(Long paymentId, BigDecimal totalAmount, BigDecimal couponDiscountAmount, BigDecimal balanceAmount) {
             this.paymentId = paymentId;
-            this.amount = amount;
-            this.status = status;
+            this.totalAmount = totalAmount;
+            this.couponDiscountAmount = couponDiscountAmount;
+            this.balanceAmount = balanceAmount;
         }
 
         public static OrderPaymentResponseData from(PaymentVO paymentVO) {
@@ -121,10 +120,14 @@ public class OrderResponseDTO {
                     return null;
                 }
 
+                BigDecimal couponDiscountAmount = ObjectUtils.isEmpty(paymentVO.getPaymentCoupon()) ? BigDecimal.ZERO : paymentVO.getPaymentCoupon().getAmount();
+                BigDecimal balanceAmount = ObjectUtils.isEmpty(paymentVO.getPaymentBalance()) ? BigDecimal.ZERO : paymentVO.getPaymentBalance().getAmount();
+
                 return OrderPaymentResponseData.builder()
                         .paymentId(paymentVO.getId())
-                        .amount(paymentVO.getAmount())
-                        .status(paymentVO.getStatus())
+                        .totalAmount(paymentVO.getAmount())
+                        .couponDiscountAmount(couponDiscountAmount)
+                        .balanceAmount(balanceAmount)
                         .build();
         }
     }

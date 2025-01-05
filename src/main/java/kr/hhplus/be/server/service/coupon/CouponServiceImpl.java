@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Slf4j
@@ -22,7 +23,21 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     public void issueCoupon(Coupon coupon) {
+
+        validIssueCoupon(coupon);
+
         coupon.issueCoupon();
         couponRepository.save(coupon);
+    }
+
+    private static void validIssueCoupon(Coupon coupon) {
+        LocalDateTime now = LocalDateTime.now();
+        if (now.isBefore(coupon.getRegisterStartDate()) || now.isAfter(coupon.getRegisterEndDate())) {
+            throw new IllegalArgumentException("Coupon registration period is not valid.");
+        }
+
+        if (coupon.getStock() <= coupon.getCurrentStock()) {
+            throw new IllegalArgumentException("Coupon stock is insufficient.");
+        }
     }
 }

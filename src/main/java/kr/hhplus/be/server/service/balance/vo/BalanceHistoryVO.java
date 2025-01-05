@@ -6,6 +6,7 @@ import kr.hhplus.be.server.service.user.vo.UserVO;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 
@@ -27,6 +28,11 @@ public class BalanceHistoryVO {
     }
 
     public static BalanceHistoryVO from(BalanceHistory balanceHistory) {
+
+        if (ObjectUtils.isEmpty(balanceHistory)) {
+            return null;
+        }
+
         return BalanceHistoryVO.builder()
                 .id(balanceHistory.getId())
                 .user(UserVO.from(balanceHistory.getUser()))

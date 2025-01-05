@@ -24,6 +24,12 @@ public class UserCouponServiceImpl implements UserCouponService {
     @Transactional
     public void issueCoupon(User user, Coupon coupon) {
 
+        // 이미 발급된 쿠폰인지 확인
+        getUserCouponByCouponIdAndUserId(coupon.getId(), user.getId())
+                .ifPresent(userCoupon -> {
+                    throw new IllegalArgumentException("User already has the coupon.");
+                });
+
         LocalDateTime expiredAt = LocalDateTime.now();
         if (ObjectUtils.isEmpty(coupon.getAvailableDay())) {
 

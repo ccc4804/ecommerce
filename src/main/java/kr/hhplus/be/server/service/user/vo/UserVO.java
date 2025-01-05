@@ -31,6 +31,7 @@ public class UserVO {
         if (ObjectUtils.isEmpty(user)) {
             return null;
         }
+
         return UserVO.builder()
                 .id(user.getId())
                 .name(user.getName())

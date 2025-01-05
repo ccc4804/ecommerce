@@ -4,6 +4,7 @@ import kr.hhplus.be.server.domain.payment.entity.PaymentBalance;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 
@@ -21,6 +22,11 @@ public class PaymentBalanceVO {
     }
 
     public static PaymentBalanceVO from(PaymentBalance paymentBalance) {
+
+        if (ObjectUtils.isEmpty(paymentBalance)) {
+            return null;
+        }
+
         return PaymentBalanceVO.builder()
                 .id(paymentBalance.getId())
                 .amount(paymentBalance.getAmount())

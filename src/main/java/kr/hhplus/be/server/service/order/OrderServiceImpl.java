@@ -19,7 +19,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public Order createOrder(User user, BigDecimal totalPrice) {
-        Order order = Order.builder()
+        Order order = Order.of()
                 .user(user)
                 .status(OrderStatus.PENDING)
                 .totalPrice(totalPrice)

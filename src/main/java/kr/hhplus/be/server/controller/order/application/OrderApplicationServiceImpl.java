@@ -3,10 +3,13 @@ package kr.hhplus.be.server.controller.order.application;
 import kr.hhplus.be.server.domain.balance.entity.BalanceHistory;
 import kr.hhplus.be.server.domain.cart.entity.CartItem;
 import kr.hhplus.be.server.domain.coupon.code.CouponStatus;
+import kr.hhplus.be.server.domain.coupon.entity.Coupon;
 import kr.hhplus.be.server.domain.coupon.entity.UserCoupon;
 import kr.hhplus.be.server.domain.order.entity.Order;
 import kr.hhplus.be.server.domain.order.entity.OrderItem;
 import kr.hhplus.be.server.domain.payment.entity.Payment;
+import kr.hhplus.be.server.domain.payment.entity.PaymentBalance;
+import kr.hhplus.be.server.domain.payment.entity.PaymentCoupon;
 import kr.hhplus.be.server.domain.product.code.ProductStatus;
 import kr.hhplus.be.server.domain.product.entity.Product;
 import kr.hhplus.be.server.domain.user.entity.User;
@@ -48,26 +51,39 @@ public class OrderApplicationServiceImpl implements OrderApplicationService {
     @Override
     @Transactional
     public OrderVO payOrder(List<Long> cartItemIds, Long userCouponId) {
-        List<CartItem> cartItems = getValidatedCartItems(cartItemIds);
+        List<CartItem> cartItems = validateAndFetchCartItems(cartItemIds);
         BigDecimal totalPrice = calculateTotalPrice(cartItems);
-
         User user = cartItems.get(0).getUser();
-        Order order = createOrder(user, totalPrice, cartItems);
 
-        BigDecimal couponDiscountPrice = applyCouponIfAvailable(userCouponId, user, totalPrice);
-        totalPrice = totalPrice.subtract(couponDiscountPrice);
+        Order order = createOrderWithItems(user, totalPrice, cartItems);
+        BigDecimal couponDiscountPrice = applyCouponDiscount(userCouponId, user, totalPrice);
 
-        verifyBalanceSufficiency(user, totalPrice);
-        processPaymentAndUsage(user, order, totalPrice, couponDiscountPrice, cartItems);
+        processPayment(user, order, totalPrice.subtract(couponDiscountPrice), couponDiscountPrice, cartItems);
+        order.updateSuccessPayment();
 
         return OrderVO.from(order);
     }
 
-    private List<CartItem> getValidatedCartItems(List<Long> cartItemIds) {
+    private List<CartItem> validateAndFetchCartItems(List<Long> cartItemIds) {
         List<CartItem> cartItems = cartItemService.getCartItemsByIds(cartItemIds);
-        validateCartItems(cartItemIds, cartItems);
-        validateProducts(cartItems);
+
+        if (cartItemIds.size() != cartItems.size()) {
+            throw new IllegalArgumentException("Cart items count mismatch.");
+        }
+
+        cartItems.forEach(this::validateCartItem);
         return cartItems;
+    }
+
+    private void validateCartItem(CartItem cartItem) {
+        if (cartItem.getQuantity() <= 0) {
+            throw new IllegalArgumentException("Invalid product quantity.");
+        }
+
+        Product product = cartItem.getProduct();
+        if (ObjectUtils.isEmpty(product) || !ProductStatus.SALE.equals(product.getStatus()) || product.getStock() < cartItem.getQuantity()) {
+            throw new IllegalArgumentException("Invalid product state or stock.");
+        }
     }
 
     private BigDecimal calculateTotalPrice(List<CartItem> cartItems) {
@@ -76,83 +92,63 @@ public class OrderApplicationServiceImpl implements OrderApplicationService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private BigDecimal applyCouponIfAvailable(Long userCouponId, User user, BigDecimal totalPrice) {
+    private BigDecimal applyCouponDiscount(Long userCouponId, User user, BigDecimal totalPrice) {
         if (userCouponId == null) {
             return BigDecimal.ZERO;
         }
 
-        UserCoupon userCoupon = fetchAndValidateUserCoupon(userCouponId, user);
-        return totalPrice.divide(BigDecimal.valueOf(userCoupon.getCoupon().getDiscount()), 0, RoundingMode.DOWN);
-    }
-
-    private void verifyBalanceSufficiency(User user, BigDecimal totalPrice) {
-        BigDecimal availableBalance = balanceHistoryService.calculate(user);
-        if (totalPrice.compareTo(availableBalance) > 0) {
-            throw new IllegalArgumentException("Insufficient balance.");
-        }
-    }
-
-    private void processPaymentAndUsage(User user, Order order, BigDecimal totalPrice, BigDecimal couponDiscountPrice, List<CartItem> cartItems) {
-        BalanceHistory usedBalanceHistory = balanceHistoryService.use(user, totalPrice);
-        Payment payment = paymentService.saveSuccess(order, totalPrice);
-
-        if (couponDiscountPrice.compareTo(BigDecimal.ZERO) > 0) {
-            UserCoupon usedCoupon = userCouponService.use(fetchAndValidateUserCoupon(user.getId(), user));
-            couponUsedHistoryService.save(user.getId(), usedCoupon.getId());
-            paymentCouponService.save(payment, usedCoupon, couponDiscountPrice);
-        }
-
-        paymentBalanceService.save(payment, usedBalanceHistory, totalPrice);
-        cartItemService.deleteCartItems(cartItems);
-    }
-
-    private UserCoupon fetchAndValidateUserCoupon(Long userCouponId, User user) {
         UserCoupon userCoupon = userCouponService.getUserCouponByCouponIdAndUserId(userCouponId, user.getId())
-                .orElseThrow(() -> new EntityNotFoundException("The coupon does not exist."));
+                .orElseThrow(() -> new EntityNotFoundException("Coupon not found."));
 
-        if (!ObjectUtils.nullSafeEquals(userCoupon.getStatus(), CouponStatus.ACTIVE)) {
-            throw new IllegalArgumentException("The coupon is not available.");
-        }
+        validateUserCoupon(userCoupon);
 
-        if (LocalDateTime.now().isAfter(userCoupon.getExpiredAt())) {
-            throw new IllegalArgumentException("The coupon has expired.");
-        }
-        return userCoupon;
+        Coupon coupon = userCoupon.getCoupon();
+
+        // 쿠폰 할인 예정 금액 = 결제 금액 * 할인율 / 100
+        // 나누기 시 1의 자리에서 내림 처림
+        return totalPrice.multiply(
+                        BigDecimal.valueOf(coupon.getDiscount()))
+                .divide(
+                        BigDecimal.valueOf(100),
+                        0,
+                        RoundingMode.DOWN
+                );
     }
 
-    private Order createOrder(User user, BigDecimal totalPrice, List<CartItem> cartItems) {
+    private void validateUserCoupon(UserCoupon userCoupon) {
+        if (!CouponStatus.ACTIVE.equals(userCoupon.getStatus()) || LocalDateTime.now().isAfter(userCoupon.getExpiredAt())) {
+            throw new IllegalArgumentException("Invalid or expired coupon.");
+        }
+    }
+
+    private Order createOrderWithItems(User user, BigDecimal totalPrice, List<CartItem> cartItems) {
         Order order = orderService.createOrder(user, totalPrice);
-        List<OrderItem> orderItems = createOrderItems(order, cartItems);
+        List<OrderItem> orderItems = cartItems.stream()
+                .map(cartItem -> orderItemService.createOrderItem(order, cartItem.getProduct(), cartItem.getQuantity(), cartItem.getProduct().getPrice()))
+                .toList();
         order.setOrderItems(orderItems);
         return order;
     }
 
-    private List<OrderItem> createOrderItems(Order order, List<CartItem> cartItems) {
-        return cartItems.stream()
-                .map(cartItem -> orderItemService.createOrderItem(order, cartItem.getProduct(), cartItem.getQuantity(), cartItem.getProduct().getPrice()))
-                .toList();
-    }
-
-    private void validateCartItems(List<Long> cartItemIds, List<CartItem> cartItems) {
-        if (!ObjectUtils.nullSafeEquals(cartItemIds.size(), cartItems.size())) {
-            throw new IllegalArgumentException("The number of products in the shopping cart is different.");
+    private void processPayment(User user, Order order, BigDecimal totalPrice, BigDecimal couponDiscountPrice, List<CartItem> cartItems) {
+        if (balanceHistoryService.calculate(user).compareTo(totalPrice) < 0) {
+            throw new IllegalArgumentException("Insufficient balance.");
         }
-    }
 
-    private void validateProducts(List<CartItem> cartItems) {
-        cartItems.forEach(cartItem -> {
-            Product product = cartItem.getProduct();
-            if (ObjectUtils.isEmpty(product)) {
-                throw new IllegalArgumentException("The product does not exist.");
-            }
+        BalanceHistory usedBalanceHistory = balanceHistoryService.use(user, totalPrice);
+        Payment payment = paymentService.save(order, totalPrice);
 
-            if (!ObjectUtils.nullSafeEquals(ProductStatus.SALE, product.getStatus())) {
-                throw new IllegalArgumentException("The product is not for sale.");
-            }
+        if (couponDiscountPrice.compareTo(BigDecimal.ZERO) > 0) {
+            UserCoupon usedCoupon = userCouponService.use(userCouponService.getUserCouponByCouponIdAndUserId(order.getUser().getId(), user.getId()).orElseThrow());
+            couponUsedHistoryService.save(user.getId(), usedCoupon.getId());
+            PaymentCoupon paymentCoupon = paymentCouponService.save(payment, usedCoupon, couponDiscountPrice);
+            payment.setPaymentCoupon(paymentCoupon);
+        }
 
-            if (product.getStock() < cartItem.getQuantity()) {
-                throw new IllegalArgumentException("The product is out of stock.");
-            }
-        });
+        PaymentBalance paymentBalance = paymentBalanceService.save(payment, usedBalanceHistory, totalPrice);
+        payment.setPaymentBalance(paymentBalance);
+        cartItemService.deleteCartItems(cartItems);
+
+        order.setPayment(payment);
     }
 }
