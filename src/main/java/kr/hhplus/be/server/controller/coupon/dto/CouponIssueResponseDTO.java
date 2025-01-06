@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 public class CouponIssueResponseDTO {
+    
     private long couponId;
     private long userId;
     private String couponCode;

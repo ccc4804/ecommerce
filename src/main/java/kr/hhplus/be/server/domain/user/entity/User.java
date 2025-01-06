@@ -3,12 +3,14 @@ package kr.hhplus.be.server.domain.user.entity;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -18,9 +20,9 @@ import java.time.LocalDateTime;
 
 @Getter
 @Entity
-@Table(name = "user")
-@ToString
 @NoArgsConstructor
+@EntityListeners(AuditingEntityListener.class)
+@Table(name = "\"user\"")
 public class User {
 
     @Id
@@ -34,6 +36,7 @@ public class User {
     @Column(nullable = false, name = "email")
     private String email;
 
+    @Setter
     @Column(nullable = false, name = "balance")
     private BigDecimal balance;
 
@@ -45,7 +48,7 @@ public class User {
     @Column(nullable = false,name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @Builder
+    @Builder(builderMethodName = "of")
     public User(String name, String email, BigDecimal balance) {
         this.name = name;
         this.email = email;
