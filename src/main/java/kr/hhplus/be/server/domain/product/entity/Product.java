@@ -1,26 +1,20 @@
 package kr.hhplus.be.server.domain.product.entity;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import jakarta.persistence.*;
+import kr.hhplus.be.server.domain.product.code.ProductStatus;
+import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "product")
 @Getter
-@ToString
 @NoArgsConstructor
+@EntityListeners(AuditingEntityListener.class)
+@Table(name = "product")
 public class Product {
 
     @Id
@@ -31,14 +25,15 @@ public class Product {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(nullable = false, name = "price")
+    @Column(name = "price", nullable = false)
     private BigDecimal price;
 
-    @Column(nullable = false,name = "stock")
+    @Column(name = "stock", nullable = false)
     private int stock;
 
-    @Column(name = "is_sale")
-    private boolean isSale;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private ProductStatus status;
 
     @CreatedDate
     @Column(name = "created_at")
@@ -48,11 +43,26 @@ public class Product {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @Builder
-    public Product(String name, BigDecimal price, int stock, boolean isSale) {
+
+    @Builder(builderMethodName = "of")
+    public Product(String name, BigDecimal price, int stock, ProductStatus status) {
         this.name = name;
         this.price = price;
         this.stock = stock;
-        this.isSale = isSale;
+        this.status = status;
+    }
+
+    //테스트용
+    @Builder(builderMethodName = "testBuilder")
+    public Product(Long id, String name, BigDecimal price, int stock, ProductStatus status) {
+        this.id = id; // 테스트용으로 ID 설정
+        this.name = name;
+        this.price = price;
+        this.stock = stock;
+        this.status = status;
+    }
+
+    public void reduceStock(int quantity) {
+        this.stock -= quantity;
     }
 }
